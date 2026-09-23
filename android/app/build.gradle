@@ -3,9 +3,9 @@ plugins {
 }
 
 def keystorePath = System.getenv('KEYSTORE_PATH')
-def keystorePassword = System.getenv('KEYSTORE_PASSWORD')
-def keystoreAlias = System.getenv('KEYSTORE_ALIAS')
-def useKeystore = keystorePath && keystorePassword && keystoreAlias
+def keystorePassword = System.getenv('KEYSTORE_PASSWORD') ?: 'myledger2024!'
+def keystoreAlias = System.getenv('KEYSTORE_ALIAS') ?: 'myledger'
+def useKeystore = keystorePath != null && !keystorePath.isEmpty()
 
 android {
     namespace 'tz.co.myledger.app'
@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId "tz.co.myledger.app"
-        minSdk 24
+        minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
@@ -26,6 +26,9 @@ android {
                 storePassword keystorePassword
                 keyAlias keystoreAlias
                 keyPassword keystorePassword
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
             }
         }
     }
