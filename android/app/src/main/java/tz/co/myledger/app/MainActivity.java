@@ -11,8 +11,8 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -92,11 +92,11 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request,
-                                        WebResourceResponse errorResponse) {
+                                        WebResourceError error) {
                 if (request.isForMainFrame()) {
                     showError();
                 }
-                super.onReceivedError(view, request, errorResponse);
+                super.onReceivedError(view, request, error);
             }
 
             @Override
