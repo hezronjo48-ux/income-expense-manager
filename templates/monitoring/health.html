@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-heartbeat" style="color:#0EA5E9;margin-right:10px;"></i>System Health</h1>
+</div>
+
+<!-- Health Percentage -->
+<div class="card" style="text-align:center;padding:30px;margin-bottom:20px;background:var(--primary-bg);border-color:#BAE6FD;">
+    <div style="font-size:3.5rem;font-weight:800;color:{% if health >= 80 %}#0EA5E9{% elif health >= 50 %}#FF9500{% else %}#FF3B30{% endif %};">
+        {{ health }}%
+    </div>
+    <div style="color:var(--gray-500);margin-top:4px;">System Health Score</div>
+    <div style="margin-top:16px;max-width:400px;margin-left:auto;margin-right:auto;">
+        <div style="height:12px;background:var(--gray-200);border-radius:6px;overflow:hidden;">
+            <div style="height:100%;width:{{ health }}%;background:{% if health >= 80 %}#0EA5E9{% elif health >= 50 %}#FF9500{% else %}#FF3B30{% endif %};border-radius:6px;transition:width 0.5s;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card" style="border-top:3px solid {% if db_connected %}#0EA5E9{% else %}#FF3B30{% endif %};">
+        <div class="card-label"><i class="fas fa-database"></i> Database</div>
+        <div class="card-value" style="font-size:1.2rem;">
+            {% if db_connected %}
+            <span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Connected</span>
+            {% else %}
+            <span style="color:#FF3B30;"><i class="fas fa-times-circle"></i> Disconnected</span>
+            {% endif %}
+        </div>
+        <div style="font-size:0.8rem;color:var(--gray-400);margin-top:4px;">Last checked: {{ db_last_conn }}</div>
+    </div>
+
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-server"></i> Server</div>
+        <div class="card-value" style="font-size:1.2rem;">
+            <span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Online</span>
+        </div>
+        <div style="font-size:0.8rem;color:var(--gray-400);margin-top:4px;">Uptime: {{ uptime }}</div>
+    </div>
+
+    <div class="card" style="border-top:3px solid {% if api_healthy %}#0EA5E9{% else %}#FF3B30{% endif %};">
+        <div class="card-label"><i class="fas fa-plug"></i> API</div>
+        <div class="card-value" style="font-size:1.2rem;">
+            {% if api_healthy %}
+            <span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Healthy</span>
+            {% else %}
+            <span style="color:#FF3B30;"><i class="fas fa-exclamation-circle"></i> Failed</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-label"><i class="fas fa-clock"></i> Server Time</div>
+        <div class="card-value" style="font-size:1.1rem;">{{ now.strftime("%Y-%m-%d %H:%M:%S") }}</div>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card">
+        <h3 style="font-size:0.95rem;margin-bottom:14px;color:var(--g-700);"><i class="fas fa-microchip" style="color:var(--primary);margin-right:6px;"></i> CPU Usage</h3>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div style="font-size:2rem;font-weight:700;color:{% if stats.cpu_percent > 90 %}#FF3B30{% elif stats.cpu_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.cpu_percent }}%</div>
+            <div style="flex:1;height:10px;background:var(--gray-200);border-radius:5px;overflow:hidden;">
+                <div style="height:100%;width:{{ stats.cpu_percent }}%;background:{% if stats.cpu_percent > 90 %}#FF3B30{% elif stats.cpu_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:5px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="font-size:0.95rem;margin-bottom:14px;color:var(--g-700);"><i class="fas fa-memory" style="color:var(--secondary);margin-right:6px;"></i> RAM Usage</h3>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div style="font-size:2rem;font-weight:700;color:{% if stats.ram_percent > 90 %}#FF3B30{% elif stats.ram_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.ram_percent }}%</div>
+            <div style="flex:1;">
+                <div style="height:10px;background:var(--gray-200);border-radius:5px;overflow:hidden;">
+                    <div style="height:100%;width:{{ stats.ram_percent }}%;background:{% if stats.ram_percent > 90 %}#FF3B30{% elif stats.ram_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:5px;"></div>
+                </div>
+                <div style="font-size:0.75rem;color:var(--gray-400);margin-top:4px;">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="font-size:0.95rem;margin-bottom:14px;color:var(--g-700);"><i class="fas fa-hdd" style="color:#007AFF;margin-right:6px;"></i> Storage</h3>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div style="font-size:2rem;font-weight:700;color:{% if stats.storage_percent > 90 %}#FF3B30{% elif stats.storage_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.storage_percent }}%</div>
+            <div style="flex:1;">
+                <div style="height:10px;background:var(--gray-200);border-radius:5px;overflow:hidden;">
+                    <div style="height:100%;width:{{ stats.storage_percent }}%;background:{% if stats.storage_percent > 90 %}#FF3B30{% elif stats.storage_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:5px;"></div>
+                </div>
+                <div style="font-size:0.75rem;color:var(--gray-400);margin-top:4px;">{{ stats.storage_used }} GB / {{ stats.storage_total }} GB</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

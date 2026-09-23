@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-desktop" style="color:var(--primary);margin-right:10px;"></i>Monitoring Dashboard</h1>
+</div>
+
+<!-- Top Cards -->
+<div class="cards-row">
+    <div class="card" style="border-top:3px solid var(--primary);">
+        <div class="card-label"><i class="fas fa-heartbeat" style="color:var(--primary);margin-right:4px;"></i> System Health</div>
+        <div class="card-value" style="font-size:1.4rem;">
+            {% if db_connected %}<span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Healthy</span>
+            {% else %}<span style="color:#FF3B30;"><i class="fas fa-times-circle"></i> Issues</span>{% endif %}
+        </div>
+    </div>
+    <div class="card" style="border-top:3px solid #0EA5E9;">
+        <div class="card-label"><i class="fas fa-users" style="color:#0EA5E9;margin-right:4px;"></i> Active Users</div>
+        <div class="card-value" style="font-size:1.4rem;">{{ active_sessions }}</div>
+    </div>
+    <div class="card" style="border-top:3px solid #FF9500;">
+        <div class="card-label"><i class="fas fa-bug" style="color:#FF9500;margin-right:4px;"></i> Today's Errors</div>
+        <div class="card-value" style="font-size:1.4rem;">{{ today_errors }}</div>
+    </div>
+    <div class="card" style="border-top:3px solid #FF3B30;">
+        <div class="card-label"><i class="fas fa-shield-alt" style="color:#FF3B30;margin-right:4px;"></i> Failed Logins</div>
+        <div class="card-value" style="font-size:1.4rem;">{{ failed_logins }}</div>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-plug" style="color:#007AFF;margin-right:4px;"></i> API Status</div>
+        <div class="card-value" style="font-size:1.1rem;"><span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Online</span></div>
+    </div>
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-database" style="color:#007AFF;margin-right:4px;"></i> Database</div>
+        <div class="card-value" style="font-size:1.1rem;">
+            {% if db_connected %}<span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Connected</span>
+            {% else %}<span style="color:#FF3B30;"><i class="fas fa-times-circle"></i> Disconnected</span>{% endif %}
+        </div>
+    </div>
+    <div class="card" style="border-top:3px solid #0EA5E9;">
+        <div class="card-label"><i class="fas fa-server" style="color:#0EA5E9;margin-right:4px;"></i> Performance</div>
+        <div class="card-value" style="font-size:1.1rem;">
+            {% if perf %}{{ perf.cpu_usage|default(0) }}% CPU / {{ perf.ram_usage|default(0) }}% RAM{% else %}N/A{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="cards-row">
+    <!-- Recent Errors -->
+    <div class="card" style="flex:2;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-bug" style="color:#FF3B30;margin-right:6px;"></i> Recent Errors</h3>
+        <table class="data-table" style="font-size:0.85rem;">
+            <thead><tr><th>Type</th><th>Description</th><th>Severity</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for e in errors %}
+                <tr>
+                    <td><span class="badge badge-{{ 'danger' if e.severity=='critical' else 'warning' if e.severity=='high' else 'info' }}">{{ e.error_type }}</span></td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.description[:80] }}{% if e.description|length>80 %}...{% endif %}</td>
+                    <td><span class="badge badge-{{ 'danger' if e.severity=='critical' else 'warning' }}">{{ e.severity }}</span></td>
+                    <td>{{ e.created_at.strftime("%H:%M") if e.created_at else '' }}</td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="empty-table"><i class="fas fa-check-circle" style="color:#0EA5E9;"></i> No errors recorded</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('monitoring_errors') }}" style="display:block;text-align:center;margin-top:10px;font-size:0.85rem;color:var(--primary);">View All Errors →</a>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card" style="flex:2;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-history" style="color:var(--primary);margin-right:6px;"></i> Recent Activity</h3>
+        <table class="data-table" style="font-size:0.85rem;">
+            <thead><tr><th>User</th><th>Action</th><th>Module</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for a in activities %}
+                <tr>
+                    <td><strong>{{ a.username }}</strong></td>
+                    <td><span class="badge badge-{{ 'success' if a.action in ('LOGIN','LOGOUT') else 'info' }}">{{ a.action }}</span></td>
+                    <td>{{ a.module or '-' }}</td>
+                    <td>{{ a.created_at.strftime("%H:%M") if a.created_at else '' }}</td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="empty-table">No recent activity</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('monitoring_activity') }}" style="display:block;text-align:center;margin-top:10px;font-size:0.85rem;color:var(--primary);">View All Activity →</a>
+    </div>
+</div>
+
+<div class="cards-row">
+    <!-- Latest Security Events -->
+    <div class="card" style="flex:2;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-shield-alt" style="color:#FF9500;margin-right:6px;"></i> Latest Security Events</h3>
+        <table class="data-table" style="font-size:0.85rem;">
+            <thead><tr><th>Event</th><th>User</th><th>IP</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for s in security %}
+                <tr>
+                    <td><span class="badge badge-{{ s.status }}">{{ s.event_type }}</span></td>
+                    <td>{{ s.username }}</td>
+                    <td style="font-family:monospace;">{{ s.ip_address }}</td>
+                    <td>{{ s.created_at.strftime("%H:%M") if s.created_at else '' }}</td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="empty-table">No security events</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('monitoring_security') }}" style="display:block;text-align:center;margin-top:10px;font-size:0.85rem;color:var(--primary);">View All Events →</a>
+    </div>
+
+    <!-- Latest Notifications -->
+    <div class="card" style="flex:2;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-bell" style="color:#FF9500;margin-right:6px;"></i> Latest Notifications</h3>
+        <table class="data-table" style="font-size:0.85rem;">
+            <thead><tr><th>Title</th><th>Severity</th><th>Read</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for n in notifications %}
+                <tr>
+                    <td>{{ n.title[:50] }}</td>
+                    <td><span class="badge badge-{{ 'danger' if n.severity=='critical' else 'warning' if n.severity=='warning' else 'info' }}">{{ n.severity }}</span></td>
+                    <td>{% if n.is_read %}<span style="color:#0EA5E9;"><i class="fas fa-check"></i></span>{% else %}<span style="color:#FF9500;"><i class="fas fa-circle"></i></span>{% endif %}</td>
+                    <td>{{ n.created_at.strftime("%H:%M") if n.created_at else '' }}</td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="empty-table"><i class="fas fa-bell-slash"></i> No notifications</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('monitoring_notifications') }}" style="display:block;text-align:center;margin-top:10px;font-size:0.85rem;color:var(--primary);">View All Notifications →</a>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Sensitive / local-only config
+secret_key.txt
+config.json
+
+# Contains hardcoded PythonAnywhere API token - rotate token, then
+# re-add to git if you want it tracked.
+deploy.py
+
+# Database
+instance/
+*.db
+backup/
+*.sqlite*

@@ -1,0 +1,84 @@
+name: Build Android APK (MyLedger)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+env:
+  # Optional GitHub Secret (Settings > Secrets and variables > Actions):
+  #   MYLEDGER_KEYSTORE_PASSWORD = keystore password
+  # If not set, the workflow falls back to "myledger2024!".
+  KEYSTORE_PASSWORD: ${{ secrets.MYLEDGER_KEYSTORE_PASSWORD }}
+
+jobs:
+  build-apk:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Reuse the same signing keystore between runs so app updates
+      # install over previous versions without having to uninstall.
+      - name: Restore signing keystore (cache)
+        id: ks-cache
+        uses: actions/cache@v4
+        with:
+          path: android/myledger-release.keystore
+          key: myledger-release-keystore-v1
+
+      - name: Create signing keystore (first run only)
+        if: steps.ks-cache.outputs.cache-hit != 'true'
+        run: |
+          KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-myledger2024!}"
+          keytool -genkeypair -v \
+            -keystore android/myledger-release.keystore \
+            -alias myledger \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEYSTORE_PASSWORD" \
+            -dname "CN=MyLedger, OU=Mobile Apps, O=F&U Universal Adventures, L=Dar es Salaam, ST=Dar es Salaam, C=TZ"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/android/myledger-release.keystore
+          KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: myledger
+        run: |
+          KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-myledger2024!}"
+          echo "Building with keystore: $KEYSTORE_PATH"
+          gradle assembleRelease --no-daemon
+
+      - name: Print signing certificate SHA-256
+        run: |
+          KEYSTORE_PASSWORD="${KEYSTORE_PASSWORD:-myledger2024!}"
+          keytool -list -v \
+            -keystore android/myledger-release.keystore \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias myledger
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: myledger-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

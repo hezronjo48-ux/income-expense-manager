@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-dollar-sign" style="color:var(--primary);margin-right:10px;"></i>Dollar Account - Expenses</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ url_for('dollar_account_income') }}" class="btn btn-success"><i class="fas fa-arrow-up"></i> View Income</a>
+        <a href="{{ url_for('dollar_account') }}" class="btn btn-secondary"><i class="fas fa-list"></i> Combined View</a>
+        <button class="btn btn-danger" onclick="showExpenseForm()"><i class="fas fa-plus"></i> Add Expense</button>
+        <a href="{{ url_for('export_expenses', currency='$') }}" class="btn btn-secondary"><i class="fas fa-file-csv"></i> Export</a>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card card-income">
+        <div class="card-label"><i class="fas fa-arrow-up" style="margin-right:4px;"></i> Total USD Income</div>
+        <div class="card-value">$ {{ total_income|currency }}</div>
+    </div>
+    <div class="card card-expense">
+        <div class="card-label"><i class="fas fa-arrow-down" style="margin-right:4px;"></i> Total USD Expenses</div>
+        <div class="card-value">$ {{ total_expense|currency }}</div>
+    </div>
+    <div class="card card-balance">
+        <div class="card-label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Balance</div>
+        <div class="card-value">$ {{ balance|currency }}</div>
+    </div>
+</div>
+
+<!-- Add / Edit Expense Form -->
+<div class="form-card" id="expenseForm" style="display:none;">
+    <div class="form-header">
+        <h3 id="expenseFormTitle"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Expense</h3>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="POST" id="expenseFormElement" action="{{ url_for('expense_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--gray-400);"></i> Date</label>
+                <input type="date" id="exp_date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-tag" style="margin-right:5px;color:var(--gray-400);"></i> Category</label>
+                <select id="exp_category" name="category" required>
+                    {% for cat in expense_categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Amount (USD)</label>
+                <div class="amount-with-currency">
+                    <input type="number" id="exp_amount" name="amount" step="0.01" min="0.01" required placeholder="0.00" />
+                    <select id="exp_currency" name="currency" class="currency-select">
+                        <option value="$" selected>$</option>
+                        <option value="TZS">TZS</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user-pen" style="margin-right:5px;color:var(--gray-400);"></i> Recorded By</label>
+                <input type="text" id="exp_recorded_by" name="recorded_by" value="{{ current_user.full_name }}" placeholder="Who recorded this" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-align-left" style="margin-right:5px;color:var(--gray-400);"></i> Description</label>
+                <input type="text" id="exp_description" name="description" placeholder="Brief description (optional)" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<h2 class="section-title" style="margin-top:30px;margin-bottom:14px;font-size:1.15rem;"><i class="fas fa-arrow-down" style="color:#FF3B30;margin-right:8px;"></i> USD Expense Records <span class="tab-count">{{ expenses|length }}</span></h2>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Recorded By</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in expenses %}
+            <tr>
+                <td>{{ item.date.strftime("%Y-%m-%d") }}</td>
+                <td><span class="badge badge-expense">{{ item.category }}</span></td>
+                <td>{{ item.recorded_by or '-' }}</td>
+                <td>{{ item.description or '-' }}</td>
+                <td class="amount expense-amount">$ {{ item.amount|currency }}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-edit" onclick='editExpense({{ item.id|tojson }}, {{ item.date.strftime("%Y-%m-%d")|tojson }}, {{ item.category|tojson }}, {{ item.amount|tojson }}, {{ item.description|tojson }}, {{ item.recorded_by|tojson }}, {{ (item.currency or "$")|tojson }})'><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('expense_delete', id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this expense record?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No USD expense records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function showExpenseForm() {
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Expense';
+    document.getElementById('expenseFormElement').action = '{{ url_for("expense_add") }}';
+    document.getElementById('exp_date').value = '{{ now.strftime("%Y-%m-%d") }}';
+    document.getElementById('exp_category').value = '{{ expense_categories[0] }}';
+    document.getElementById('exp_amount').value = '';
+    document.getElementById('exp_currency').value = '$';
+    document.getElementById('exp_recorded_by').value = '{{ current_user.full_name }}';
+    document.getElementById('exp_description').value = '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editExpense(id, date, category, amount, description, recordedBy, currency) {
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i> Edit Expense';
+    document.getElementById('expenseFormElement').action = '/expenses/edit/' + id;
+    document.getElementById('exp_date').value = date;
+    document.getElementById('exp_category').value = category;
+    document.getElementById('exp_amount').value = amount;
+    document.getElementById('exp_currency').value = currency || '$';
+    document.getElementById('exp_recorded_by').value = recordedBy || '';
+    document.getElementById('exp_description').value = description || '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideExpenseForm() {
+    document.getElementById('expenseForm').style.display = 'none';
+}
+</script>
+
+{% endblock %}

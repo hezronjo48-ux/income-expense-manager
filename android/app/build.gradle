@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+def keystorePath = System.getenv('KEYSTORE_PATH')
+def keystorePassword = System.getenv('KEYSTORE_PASSWORD')
+def keystoreAlias = System.getenv('KEYSTORE_ALIAS')
+def useKeystore = keystorePath && keystorePassword && keystoreAlias
+
+android {
+    namespace 'tz.co.myledger.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "tz.co.myledger.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        if (useKeystore) {
+            release {
+                storeFile file(keystorePath)
+                storePassword keystorePassword
+                keyAlias keystoreAlias
+                keyPassword keystorePassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (useKeystore) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

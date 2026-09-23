@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="F&U UNIVERSAL ADVENTURES - Income & Expense Management System. Track your finances, manage budgets, and monitor cash flow." />
+    <meta name="keywords" content="myledger, myledger.co.tz, F&U UNIVERSAL ADVENTURES, income tracker, expense manager, finance, budget, accounting, personal finance" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="{{ company_name }} - Login" />
+    <meta property="og:description" content="Income & Expense Management System - Track your finances with ease." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.myledger.co.tz/" />
+    <meta property="og:site_name" content="{{ company_name }}" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href="https://www.myledger.co.tz/" />
+    <title>{{ company_name }} - Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" /></noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}?v={{ static_version }}" />
+    <meta name="theme-color" content="#0EA5E9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MyLedger" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}" />
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='img/icon-192.png') }}" />
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='img/icon-512.png') }}" />
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('{{ url_for("static", filename="sw.js") }}?v={{ static_version }}')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.log('SW registration failed:', err));
+        });
+      }
+    </script>
+</head>
+<body class="login-page">
+    <div class="login-ring-1"></div>
+    <div class="login-ring-2"></div>
+    <div class="login-ring-3"></div>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                {% if logo %}
+                <img src="{{ url_for('static', filename=logo) }}" alt="{{ company_name }} Logo" class="login-img-logo" />
+                {% else %}
+                <div class="login-icon-box">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                {% endif %}
+                <h1>{{ company_name }}</h1>
+                <p>Income &amp; Expense Management</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('login') }}" class="login-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user" style="margin-right:6px;color:var(--gray-400);"></i> Username</label>
+                    <input type="text" id="username" name="username" required autofocus placeholder="Enter your username" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock" style="margin-right:6px;color:var(--gray-400);"></i> Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password" autocomplete="current-password" />
+                </div>
+                <button type="submit" class="btn btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-user" style="color:var(--primary);margin-right:10px;"></i>{{ customer.name }} - Expenses</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ url_for('usd_customer_income', id=customer.id) }}" class="btn btn-success"><i class="fas fa-arrow-up"></i> View Income</a>
+        <a href="{{ url_for('usd_customer', id=customer.id) }}" class="btn btn-secondary"><i class="fas fa-list"></i> Combined View</a>
+        <a href="{{ url_for('usd_account') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Customers</a>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card card-income">
+        <div class="card-label"><i class="fas fa-arrow-up" style="margin-right:4px;"></i> Total Income ($)</div>
+        <div class="card-value">$ {{ total_income|currency }}</div>
+    </div>
+    <div class="card card-expense">
+        <div class="card-label"><i class="fas fa-arrow-down" style="margin-right:4px;"></i> Total Expenses ($)</div>
+        <div class="card-value">$ {{ total_expense|currency }}</div>
+    </div>
+    <div class="card card-balance">
+        <div class="card-label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Balance ($)</div>
+        <div class="card-value">$ {{ balance|currency }}</div>
+    </div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+    <button class="btn btn-danger" onclick="showExpenseForm()"><i class="fas fa-plus"></i> Add Expense</button>
+</div>
+
+<!-- Expense Form -->
+<div class="form-card" id="expenseForm" style="display:none;">
+    <div class="form-header">
+        <h3 id="expenseFormTitle"><i class="fas fa-plus-circle" style="color:#FF3B30;margin-right:8px;"></i> Add Expense</h3>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="POST" id="expenseFormElement" action="{{ url_for('usd_expense_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="customer_id" value="{{ customer.id }}" />
+        <input type="hidden" name="form_type" id="expenseFormType" value="add" />
+        <input type="hidden" name="record_id" id="expenseRecordId" value="" />
+
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--gray-400);"></i> Date</label>
+                <input type="date" id="expenseDate" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-tag" style="margin-right:5px;color:var(--gray-400);"></i> Category</label>
+                <select id="expenseCategory" name="category" required>
+                    {% for cat in expense_categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Amount ($)</label>
+                <input type="number" id="expenseAmount" name="amount" step="0.01" min="0.01" required placeholder="0.00" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-credit-card" style="margin-right:5px;color:var(--gray-400);"></i> Payment Method</label>
+                <select id="expensePaymentMethod" name="payment_method" required>
+                    {% for pm in payment_methods %}
+                    <option value="{{ pm }}">{{ pm }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-align-left" style="margin-right:5px;color:var(--gray-400);"></i> Description</label>
+                <input type="text" id="expenseDescription" name="description" placeholder="Brief description (optional)" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:1;">
+                <label><i class="fas fa-sticky-note" style="margin-right:5px;color:var(--gray-400);"></i> Note</label>
+                <textarea id="expenseNote" name="note" rows="3" placeholder="Additional notes (optional)" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit;background:var(--bg-card);color:var(--text);resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<!-- Expense Records Table -->
+<div class="table-container" style="margin-top:24px;">
+    <h3 style="margin:0 0 12px 0;color:var(--text);"><i class="fas fa-arrow-down" style="color:#FF3B30;margin-right:8px;"></i> Expense Records <span class="tab-count">{{ expenses|length }}</span></h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Amount ($)</th>
+                <th>Payment Method</th>
+                <th>Note</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in expenses %}
+            <tr>
+                <td>{{ item.date.strftime("%Y-%m-%d") }}</td>
+                <td><span class="badge badge-expense">{{ item.category }}</span></td>
+                <td class="amount expense-amount">$ {{ item.amount|currency }}</td>
+                <td>{{ item.payment_method or '-' }}</td>
+                <td>{{ item.note or '-' }}</td>
+                <td>{{ item.description or '-' }}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-edit" onclick='editExpense({{ item.id|tojson }}, {{ item.date.strftime("%Y-%m-%d")|tojson }}, {{ item.category|tojson }}, {{ item.amount|tojson }}, {{ item.payment_method|tojson }}, {{ item.note|tojson }}, {{ item.description|tojson }})'><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('usd_expense_delete', id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this expense record?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No expense records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function showExpenseForm() {
+    document.getElementById('expenseFormType').value = 'add';
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-plus-circle" style="color:#FF3B30;margin-right:8px;"></i> Add Expense';
+    document.getElementById('expenseFormElement').action = '{{ url_for("usd_expense_add") }}';
+    document.getElementById('expenseDate').value = '{{ now.strftime("%Y-%m-%d") }}';
+    document.getElementById('expenseCategory').value = '{{ expense_categories[0] }}';
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expensePaymentMethod').value = '{{ payment_methods[0] }}';
+    document.getElementById('expenseNote').value = '';
+    document.getElementById('expenseDescription').value = '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editExpense(id, date, category, amount, paymentMethod, note, description) {
+    document.getElementById('expenseFormType').value = 'edit';
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-edit" style="color:#FF3B30;margin-right:8px;"></i> Edit Expense';
+    document.getElementById('expenseFormElement').action = '{{ url_for("usd_expense_edit", id=0) }}'.replace('/0', '/' + id);
+    document.getElementById('expenseRecordId').value = id;
+    document.getElementById('expenseDate').value = date;
+    document.getElementById('expenseCategory').value = category;
+    document.getElementById('expenseAmount').value = amount;
+    document.getElementById('expensePaymentMethod').value = paymentMethod || '';
+    document.getElementById('expenseNote').value = note || '';
+    document.getElementById('expenseDescription').value = description || '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideExpenseForm() {
+    document.getElementById('expenseForm').style.display = 'none';
+}
+</script>
+
+{% endblock %}

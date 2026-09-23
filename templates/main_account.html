@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-book" style="color:var(--primary);margin-right:10px;"></i>Main TZS Account</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="showIncomeForm()"><i class="fas fa-plus"></i> Add Income</button>
+        <button class="btn btn-danger" onclick="showExpenseForm()"><i class="fas fa-plus"></i> Add Expense</button>
+        <a href="{{ url_for('export_incomes') }}" class="btn btn-secondary"><i class="fas fa-file-csv"></i> Export Incomes</a>
+        <a href="{{ url_for('export_expenses') }}" class="btn btn-secondary"><i class="fas fa-file-csv"></i> Export Expenses</a>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card card-income">
+        <div class="card-label"><i class="fas fa-arrow-up" style="margin-right:4px;"></i> Total Income</div>
+        <div class="card-value">TZS {{ total_income|currency }}</div>
+    </div>
+    <div class="card card-expense">
+        <div class="card-label"><i class="fas fa-arrow-down" style="margin-right:4px;"></i> Total Expenses</div>
+        <div class="card-value">TZS {{ total_expense|currency }}</div>
+    </div>
+    <div class="card card-balance">
+        <div class="card-label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Total Balance</div>
+        <div class="card-value">TZS {{ balance|currency }}</div>
+    </div>
+</div>
+
+<!-- Add / Edit Income Form -->
+<div class="form-card" id="incomeForm" style="display:none;">
+    <div class="form-header">
+        <h3 id="incomeFormTitle"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Income</h3>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="hideIncomeForm()"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="POST" id="incomeFormElement" action="{{ url_for('income_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--gray-400);"></i> Date</label>
+                <input type="date" id="inc_date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-tag" style="margin-right:5px;color:var(--gray-400);"></i> Category</label>
+                <select id="inc_category" name="category" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Amount (TZS)</label>
+                <div class="amount-with-currency">
+                    <input type="number" id="inc_amount" name="amount" step="0.01" min="0.01" required placeholder="0.00" />
+                    <input type="hidden" id="inc_currency" name="currency" value="TZS" />
+                    <span class="currency-select static-currency">TZS</span>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user-pen" style="margin-right:5px;color:var(--gray-400);"></i> Recorded By</label>
+                <input type="text" id="inc_recorded_by" name="recorded_by" value="{{ current_user.full_name }}" placeholder="Who recorded this" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-align-left" style="margin-right:5px;color:var(--gray-400);"></i> Description</label>
+                <input type="text" id="inc_description" name="description" placeholder="Brief description (optional)" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideIncomeForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<!-- Add / Edit Expense Form -->
+<div class="form-card" id="expenseForm" style="display:none;">
+    <div class="form-header">
+        <h3 id="expenseFormTitle"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Expense</h3>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="POST" id="expenseFormElement" action="{{ url_for('expense_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--gray-400);"></i> Date</label>
+                <input type="date" id="exp_date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-tag" style="margin-right:5px;color:var(--gray-400);"></i> Category</label>
+                <select id="exp_category" name="category" required>
+                    {% for cat in expense_categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Amount (TZS)</label>
+                <div class="amount-with-currency">
+                    <input type="number" id="exp_amount" name="amount" step="0.01" min="0.01" required placeholder="0.00" />
+                    <input type="hidden" id="exp_currency" name="currency" value="TZS" />
+                    <span class="currency-select static-currency">TZS</span>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user-pen" style="margin-right:5px;color:var(--gray-400);"></i> Recorded By</label>
+                <input type="text" id="exp_recorded_by" name="recorded_by" value="{{ current_user.full_name }}" placeholder="Who recorded this" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-align-left" style="margin-right:5px;color:var(--gray-400);"></i> Description</label>
+                <input type="text" id="exp_description" name="description" placeholder="Brief description (optional)" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideExpenseForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Bar -->
+<div class="account-tabs">
+    <button type="button" class="account-tab active" data-tab="income" onclick="switchTab('income')">
+        <i class="fas fa-arrow-up"></i> Income <span class="tab-count">{{ incomes|length }}</span>
+    </button>
+    <button type="button" class="account-tab" data-tab="expense" onclick="switchTab('expense')">
+        <i class="fas fa-arrow-down"></i> Expenses <span class="tab-count">{{ expenses|length }}</span>
+    </button>
+</div>
+
+<!-- Income Table -->
+<div id="tab-income" class="account-tab-panel">
+<h2 class="section-title" style="margin-top:0;margin-bottom:14px;font-size:1.15rem;"><i class="fas fa-arrow-up" style="color:#0EA5E9;margin-right:8px;"></i> Income Records</h2>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Recorded By</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>TZS Value</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in incomes %}
+            <tr>
+                <td>{{ item.date.strftime("%Y-%m-%d") }}</td>
+                <td><span class="badge badge-income">{{ item.category }}</span></td>
+                <td>{{ item.recorded_by or '-' }}</td>
+                <td>{{ item.description or '-' }}</td>
+                <td class="amount income-amount">{{ item.currency or 'TZS' }} {{ item.amount|currency }}</td>
+                <td class="amount">TZS {{ (item.tzs_equivalent or item.amount)|currency }}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-edit" onclick='editIncome({{ item.id|tojson }}, {{ item.date.strftime("%Y-%m-%d")|tojson }}, {{ item.category|tojson }}, {{ item.amount|tojson }}, {{ item.description|tojson }}, {{ item.recorded_by|tojson }}, {{ (item.currency or "TZS")|tojson }})'><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('income_delete', id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this income record?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No income records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Expense Table -->
+<h2 class="section-title" style="margin-top:30px;margin-bottom:14px;font-size:1.15rem;"><i class="fas fa-arrow-down" style="color:#FF3B30;margin-right:8px;"></i> Expense Records</h2>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Recorded By</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>TZS Value</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in expenses %}
+            <tr>
+                <td>{{ item.date.strftime("%Y-%m-%d") }}</td>
+                <td><span class="badge badge-expense">{{ item.category }}</span></td>
+                <td>{{ item.recorded_by or '-' }}</td>
+                <td>{{ item.description or '-' }}</td>
+                <td class="amount expense-amount">{{ item.currency or 'TZS' }} {{ item.amount|currency }}</td>
+                <td class="amount">TZS {{ (item.tzs_equivalent or item.amount)|currency }}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-edit" onclick='editExpense({{ item.id|tojson }}, {{ item.date.strftime("%Y-%m-%d")|tojson }}, {{ item.category|tojson }}, {{ item.amount|tojson }}, {{ item.description|tojson }}, {{ item.recorded_by|tojson }}, {{ (item.currency or "TZS")|tojson }})'><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('expense_delete', id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this expense record?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No expense records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function showIncomeForm() {
+    document.getElementById('expenseForm').style.display = 'none';
+    document.getElementById('incomeFormTitle').innerHTML = '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Income';
+    document.getElementById('incomeFormElement').action = '{{ url_for("income_add") }}';
+    document.getElementById('inc_date').value = '{{ now.strftime("%Y-%m-%d") }}';
+    document.getElementById('inc_category').value = '{{ categories[0] }}';
+    document.getElementById('inc_amount').value = '';
+    document.getElementById('inc_currency').value = 'TZS';    document.getElementById('inc_recorded_by').value = '{{ current_user.full_name }}';
+    document.getElementById('inc_description').value = '';
+    document.getElementById('incomeForm').style.display = 'block';
+    document.getElementById('incomeForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editIncome(id, date, category, amount, description, recordedBy, currency) {
+    document.getElementById('expenseForm').style.display = 'none';
+    document.getElementById('incomeFormTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i> Edit Income';
+    document.getElementById('incomeFormElement').action = '/income/edit/' + id;
+    document.getElementById('inc_date').value = date;
+    document.getElementById('inc_category').value = category;
+    document.getElementById('inc_amount').value = amount;
+    document.getElementById('inc_currency').value = currency || 'TZS';
+    document.getElementById('inc_recorded_by').value = recordedBy || '';
+    document.getElementById('inc_description').value = description || '';
+    document.getElementById('incomeForm').style.display = 'block';
+    document.getElementById('incomeForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideIncomeForm() {
+    document.getElementById('incomeForm').style.display = 'none';
+}
+
+function showExpenseForm() {
+    document.getElementById('incomeForm').style.display = 'none';
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Expense';
+    document.getElementById('expenseFormElement').action = '{{ url_for("expense_add") }}';
+    document.getElementById('exp_date').value = '{{ now.strftime("%Y-%m-%d") }}';
+    document.getElementById('exp_category').value = '{{ expense_categories[0] }}';
+    document.getElementById('exp_amount').value = '';
+    document.getElementById('exp_currency').value = 'TZS';
+    document.getElementById('exp_recorded_by').value = '{{ current_user.full_name }}';
+    document.getElementById('exp_description').value = '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editExpense(id, date, category, amount, description, recordedBy, currency) {
+    document.getElementById('incomeForm').style.display = 'none';
+    document.getElementById('expenseFormTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i> Edit Expense';
+    document.getElementById('expenseFormElement').action = '/expenses/edit/' + id;
+    document.getElementById('exp_date').value = date;
+    document.getElementById('exp_category').value = category;
+    document.getElementById('exp_amount').value = amount;
+    document.getElementById('exp_currency').value = currency || 'TZS';
+    document.getElementById('exp_recorded_by').value = recordedBy || '';
+    document.getElementById('exp_description').value = description || '';
+    document.getElementById('expenseForm').style.display = 'block';
+    document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideExpenseForm() {
+    document.getElementById('expenseForm').style.display = 'none';
+}
+</script>
+
+{% endblock %}

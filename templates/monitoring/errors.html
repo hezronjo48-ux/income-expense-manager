@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-bug" style="color:#FF3B30;margin-right:10px;"></i>Error Logs</h1>
+    <div style="display:flex;gap:8px;">
+        <a href="{{ url_for('monitoring_errors_export') }}" class="btn btn-secondary"><i class="fas fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<form method="GET" action="{{ url_for('monitoring_errors') }}" class="form-card" style="padding:16px;margin-bottom:20px;">
+    <div class="form-row" style="align-items:end;">
+        <div class="form-group" style="flex:2;">
+            <label>Search</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="Search descriptions..." />
+        </div>
+        <div class="form-group">
+            <label>Type</label>
+            <select name="type">
+                <option value="">All Types</option>
+                {% for t in error_types %}
+                <option value="{{ t }}" {% if filter_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Severity</label>
+            <select name="severity">
+                <option value="">All</option>
+                <option value="critical" {% if filter_severity == 'critical' %}selected{% endif %}>Critical</option>
+                <option value="high" {% if filter_severity == 'high' %}selected{% endif %}>High</option>
+                <option value="medium" {% if filter_severity == 'medium' %}selected{% endif %}>Medium</option>
+                <option value="low" {% if filter_severity == 'low' %}selected{% endif %}>Low</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All</option>
+                <option value="unresolved" {% if filter_status == 'unresolved' %}selected{% endif %}>Unresolved</option>
+                <option value="resolved" {% if filter_status == 'resolved' %}selected{% endif %}>Resolved</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Endpoint</th>
+                <th>User</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in errors.items %}
+            <tr>
+                <td>#{{ e.id }}</td>
+                <td><span class="badge badge-info">{{ e.error_type }}</span></td>
+                <td style="max-width:250px;word-break:break-word;">{{ e.description[:120] }}{% if e.description|length > 120 %}...{% endif %}</td>
+                <td style="font-size:0.82rem;">{{ e.endpoint or '-' }}</td>
+                <td>{{ e.username or '-' }}</td>
+                <td>
+                    <span class="badge badge-{{ 'danger' if e.severity == 'critical' else 'warning' if e.severity == 'high' else 'info' }}">
+                        {{ e.severity }}
+                    </span>
+                </td>
+                <td>
+                    {% if e.status == 'resolved' %}
+                    <span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Resolved</span>
+                    {% else %}
+                    <span style="color:#FF9500;"><i class="fas fa-clock"></i> Unresolved</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.82rem;">{{ e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else '-' }}</td>
+                <td class="actions-cell">
+                    {% if e.status == 'unresolved' %}
+                    <form method="POST" action="{{ url_for('monitoring_error_resolve', id=e.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Resolve</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="empty-table"><i class="fas fa-check-circle" style="color:#0EA5E9;"></i> No errors recorded</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if errors.pages > 1 %}
+<div class="pagination">
+    {% if errors.has_prev %}
+    <a href="{{ url_for('monitoring_errors', page=errors.prev_num, search=search, type=filter_type, severity=filter_severity, status=filter_status) }}" class="btn btn-sm btn-secondary"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ errors.page }} of {{ errors.pages }}</span>
+    {% if errors.has_next %}
+    <a href="{{ url_for('monitoring_errors', page=errors.next_num, search=search, type=filter_type, severity=filter_severity, status=filter_status) }}" class="btn btn-sm btn-secondary">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

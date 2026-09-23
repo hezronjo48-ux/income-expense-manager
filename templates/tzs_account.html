@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% set ns = namespace(total_income=0, total_expenses=0) %}
+{% for c in customers %}
+  {% for inc in c.tzs_incomes %}
+    {% set ns.total_income = ns.total_income + inc.amount %}
+  {% endfor %}
+  {% for exp in c.tzs_expenses %}
+    {% set ns.total_expenses = ns.total_expenses + exp.amount %}
+  {% endfor %}
+{% endfor %}
+
+<div class="page-header">
+    <h1><i class="fas fa-wallet" style="color:var(--primary);margin-right:10px;"></i>Customer TZS Account</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="showAddForm()"><i class="fas fa-user-plus"></i> Add Customer</button>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search customers..." onkeyup="filterCustomers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg-card);color:var(--text);min-width:200px;" />
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card card-income">
+        <div class="card-label"><i class="fas fa-arrow-up" style="margin-right:4px;"></i> Total TZS Income</div>
+        <div class="card-value">TZS {{ ns.total_income|currency }}</div>
+    </div>
+    <div class="card card-expense">
+        <div class="card-label"><i class="fas fa-arrow-down" style="margin-right:4px;"></i> Total TZS Expenses</div>
+        <div class="card-value">TZS {{ ns.total_expenses|currency }}</div>
+    </div>
+    <div class="card card-balance">
+        <div class="card-label"><i class="fas fa-wallet" style="margin-right:4px;"></i> Total Balance</div>
+        <div class="card-value">TZS {{ (ns.total_income - ns.total_expenses)|currency }}</div>
+    </div>
+</div>
+
+<div class="form-card" id="addCustomerForm" style="display:none;">
+    <h3 id="addFormTitle"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Customer</h3>
+    <form method="POST" action="{{ url_for('tzs_customer_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user" style="margin-right:5px;color:var(--gray-400);"></i> Customer Name</label>
+                <input type="text" id="customerName" name="name" required placeholder="Enter customer name" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-card" id="editCustomerForm" style="display:none;">
+    <h3 id="editFormTitle"><i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i> Edit Customer</h3>
+    <form method="POST" id="editCustomerFormElement">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user" style="margin-right:5px;color:var(--gray-400);"></i> Customer Name</label>
+                <input type="text" id="editCustomerName" name="name" required placeholder="Enter customer name" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="data-table" id="customerTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Total Income</th>
+                <th>Total Expenses</th>
+                <th>Balance</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in customers %}
+            {% set cust_income = c.tzs_incomes|sum(attribute='amount') %}
+            {% set cust_expenses = c.tzs_expenses|sum(attribute='amount') %}
+            {% set cust_balance = cust_income - cust_expenses %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td class="amount income-amount">TZS {{ cust_income|currency }}</td>
+                <td class="amount expense-amount">TZS {{ cust_expenses|currency }}</td>
+                <td class="amount {% if cust_balance >= 0 %}income-amount{% else %}expense-amount{% endif %}">TZS {{ cust_balance|currency }}</td>
+                <td>{{ c.created_at.strftime("%Y-%m-%d") if c.created_at else '-' }}</td>
+                <td class="actions-cell">
+                    <a href="{{ url_for('tzs_customer', id=c.id) }}" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i> View</a>
+                    <button class="btn btn-sm btn-edit" onclick="showEditForm({{ c.id }}, {{ c.name|tojson }})"><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('tzs_customer_delete', id=c.id) }}" style="display:inline;" onsubmit="return confirm('Delete customer ' + {{ c.name|tojson }} + '? This cannot be undone.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No customers found. Add your first customer above.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function showAddForm() {
+    document.getElementById('addCustomerForm').style.display = 'block';
+    document.getElementById('addCustomerForm').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('editCustomerForm').style.display = 'none';
+    document.getElementById('customerName').value = '';
+}
+
+function hideAddForm() {
+    document.getElementById('addCustomerForm').style.display = 'none';
+}
+
+function showEditForm(id, name) {
+    document.getElementById('editCustomerForm').style.display = 'block';
+    document.getElementById('editCustomerForm').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('addCustomerForm').style.display = 'none';
+    document.getElementById('editCustomerName').value = name;
+    document.getElementById('editCustomerFormElement').action = '/tzs/customer/edit/' + id;
+}
+
+function hideEditForm() {
+    document.getElementById('editCustomerForm').style.display = 'none';
+}
+
+function filterCustomers() {
+    var input = document.getElementById('searchInput');
+    var filter = input.value.toLowerCase();
+    var table = document.getElementById('customerTable');
+    var tr = table.getElementsByTagName('tr');
+    for (var i = 1; i < tr.length; i++) {
+        var td = tr[i].getElementsByTagName('td')[0];
+        if (td) {
+            var txtValue = td.textContent || td.innerText;
+            tr[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+        }
+    }
+}
+</script>
+
+{% endblock %}

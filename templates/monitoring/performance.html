@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-chart-line" style="color:var(--primary);margin-right:10px;"></i>Performance Dashboard</h1>
+    <span style="font-size:0.85rem;color:var(--gray-400);"><i class="fas fa-sync-alt"></i> Auto-refreshes every 30s</span>
+</div>
+
+<div class="cards-row">
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-microchip" style="color:#007AFF;"></i> CPU</div>
+        <div class="card-value" style="font-size:1.5rem;color:{% if stats.cpu_percent > 90 %}#FF3B30{% elif stats.cpu_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.cpu_percent }}%</div>
+        <div style="margin-top:8px;height:8px;background:var(--gray-200);border-radius:4px;overflow:hidden;">
+            <div id="cpuBar" style="height:100%;width:{{ stats.cpu_percent }}%;background:{% if stats.cpu_percent > 90 %}#FF3B30{% elif stats.cpu_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:4px;"></div>
+        </div>
+    </div>
+
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-memory" style="color:#007AFF;"></i> RAM</div>
+        <div class="card-value" style="font-size:1.5rem;color:{% if stats.ram_percent > 90 %}#FF3B30{% elif stats.ram_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.ram_percent }}%</div>
+        <div style="margin-top:8px;height:8px;background:var(--gray-200);border-radius:4px;overflow:hidden;">
+            <div id="ramBar" style="height:100%;width:{{ stats.ram_percent }}%;background:{% if stats.ram_percent > 90 %}#FF3B30{% elif stats.ram_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:4px;"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--gray-400);margin-top:4px;">{{ stats.ram_used }} GB / {{ stats.ram_total }} GB</div>
+    </div>
+
+    <div class="card" style="border-top:3px solid #007AFF;">
+        <div class="card-label"><i class="fas fa-hdd" style="color:#007AFF;"></i> Storage</div>
+        <div class="card-value" style="font-size:1.5rem;color:{% if stats.storage_percent > 90 %}#FF3B30{% elif stats.storage_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};">{{ stats.storage_percent }}%</div>
+        <div style="margin-top:8px;height:8px;background:var(--gray-200);border-radius:4px;overflow:hidden;">
+            <div id="storageBar" style="height:100%;width:{{ stats.storage_percent }}%;background:{% if stats.storage_percent > 90 %}#FF3B30{% elif stats.storage_percent > 70 %}#FF9500{% else %}#0EA5E9{% endif %};border-radius:4px;"></div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--gray-400);margin-top:4px;">{{ stats.storage_used }} GB / {{ stats.storage_total }} GB</div>
+    </div>
+
+    <div class="card" style="border-top:3px solid #0EA5E9;">
+        <div class="card-label"><i class="fas fa-users" style="color:#0EA5E9;"></i> Active Users</div>
+        <div class="card-value" style="font-size:1.5rem;">{{ latest.active_users if latest else 0 }}</div>
+    </div>
+</div>
+
+<div class="cards-row">
+    <div class="card" style="flex:1;">
+        <div class="card-label"><i class="fas fa-exchange-alt"></i> Total Requests</div>
+        <div class="card-value" style="font-size:1.3rem;">{{ latest.total_requests if latest else 0 }}</div>
+    </div>
+    <div class="card" style="flex:1;">
+        <div class="card-label"><i class="fas fa-times-circle" style="color:#FF3B30;"></i> Failed</div>
+        <div class="card-value" style="font-size:1.3rem;color:#FF3B30;">{{ latest.failed_requests if latest else 0 }}</div>
+    </div>
+    <div class="card" style="flex:1;">
+        <div class="card-label"><i class="fas fa-clock" style="color:#FF9500;"></i> Slow (>2s)</div>
+        <div class="card-value" style="font-size:1.3rem;color:#FF9500;">{{ latest.slow_requests if latest else 0 }}</div>
+    </div>
+    <div class="card" style="flex:1;">
+        <div class="card-label"><i class="fas fa-tachometer-alt"></i> Avg Page Load</div>
+        <div class="card-value" style="font-size:1.3rem;">{{ (latest.avg_page_load_time or 0)|round(1) }}ms</div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="cards-row">
+    <div class="card" style="flex:1;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-microchip" style="color:#007AFF;margin-right:6px;"></i> CPU Usage (Last 60 min)</h3>
+        <canvas id="cpuChart" height="180"></canvas>
+    </div>
+    <div class="card" style="flex:1;">
+        <h3 style="font-size:0.95rem;margin-bottom:12px;color:var(--g-700);"><i class="fas fa-memory" style="color:#007AFF;margin-right:6px;"></i> RAM Usage (Last 60 min)</h3>
+        <canvas id="ramChart" height="180"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    var labels = {{ chart_labels|safe }};
+    var cpuData = {{ chart_cpu|safe }};
+    var ramData = {{ chart_ram|safe }};
+
+    new Chart(document.getElementById('cpuChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'CPU %', data: cpuData, borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.04)' } },
+                     x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } }
+    });
+
+    new Chart(document.getElementById('ramChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'RAM %', data: ramData, borderColor: '#007AFF', backgroundColor: 'rgba(0,122,255,0.1)', fill: true, tension: 0.3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.04)' } },
+                     x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } }
+    });
+
+    // Auto-refresh
+    setInterval(function() {
+        fetch('{{ url_for("monitoring_performance_data") }}')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                document.getElementById('cpuBar').style.width = d.cpu + '%';
+                document.getElementById('ramBar').style.width = d.ram + '%';
+                document.getElementById('storageBar').style.width = d.storage + '%';
+            });
+    }, 30000);
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-shield-alt" style="color:#FF9500;margin-right:10px;"></i>Security Monitoring</h1>
+</div>
+
+<form method="GET" action="{{ url_for('monitoring_security') }}" class="form-card" style="padding:16px;margin-bottom:20px;">
+    <div class="form-row" style="align-items:end;">
+        <div class="form-group" style="flex:2;">
+            <label>Search</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="User, IP, or details..." />
+        </div>
+        <div class="form-group">
+            <label>Event Type</label>
+            <select name="type">
+                <option value="">All Events</option>
+                {% for t in event_types %}
+                <option value="{{ t }}" {% if filter_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All</option>
+                <option value="success" {% if filter_status == 'success' %}selected{% endif %}>Success</option>
+                <option value="danger" {% if filter_status == 'danger' %}selected{% endif %}>Danger</option>
+                <option value="warning" {% if filter_status == 'warning' %}selected{% endif %}>Warning</option>
+                <option value="info" {% if filter_status == 'info' %}selected{% endif %}>Info</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>User</th>
+                <th>IP Address</th>
+                <th>Browser</th>
+                <th>Device</th>
+                <th>OS</th>
+                <th>Status</th>
+                <th>Date/Time</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in events.items %}
+            <tr>
+                <td><span class="badge badge-{{ e.status }}">{{ e.event_type }}</span></td>
+                <td><strong>{{ e.username }}</strong></td>
+                <td style="font-family:monospace;font-size:0.82rem;">{{ e.ip_address }}</td>
+                <td>{{ e.browser }}</td>
+                <td>{{ e.device }}</td>
+                <td>{{ e.os }}</td>
+                <td>
+                    {% if e.status == 'success' %}<span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i></span>
+                    {% elif e.status == 'danger' %}<span style="color:#FF3B30;"><i class="fas fa-times-circle"></i></span>
+                    {% elif e.status == 'warning' %}<span style="color:#FF9500;"><i class="fas fa-exclamation-triangle"></i></span>
+                    {% else %}<span style="color:#007AFF;"><i class="fas fa-info-circle"></i></span>{% endif %}
+                    {{ e.status|title }}
+                </td>
+                <td style="font-size:0.82rem;">{{ e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else '-' }}</td>
+                <td style="max-width:150px;font-size:0.82rem;word-break:break-word;">{{ e.details or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="empty-table"><i class="fas fa-shield-alt"></i> No security events recorded</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if events.pages > 1 %}
+<div class="pagination">
+    {% if events.has_prev %}
+    <a href="{{ url_for('monitoring_security', page=events.prev_num, search=search, type=filter_type, status=filter_status) }}" class="btn btn-sm btn-secondary"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ events.page }} of {{ events.pages }}</span>
+    {% if events.has_next %}
+    <a href="{{ url_for('monitoring_security', page=events.next_num, search=search, type=filter_type, status=filter_status) }}" class="btn btn-sm btn-secondary">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

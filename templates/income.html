@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-arrow-up" style="color:#0EA5E9;margin-right:10px;"></i>Income</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="showAddForm()"><i class="fas fa-plus"></i> Add Income</button>
+        <a href="{{ url_for('export_incomes') }}" class="btn btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" action="{{ url_for('income_list') }}" class="filter-bar">
+    <input type="date" name="from_date" value="{{ filter_from or '' }}" title="From date" />
+    <input type="date" name="to_date" value="{{ filter_to or '' }}" title="To date" />
+    <select name="category">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if filter_category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+    </select>
+    <select name="currency">
+        <option value="">All Currencies</option>
+        <option value="TZS" {% if filter_currency == 'TZS' %}selected{% endif %}>TZS</option>
+        <option value="$" {% if filter_currency == '$' %}selected{% endif %}>$</option>
+    </select>
+    <input type="text" name="q" value="{{ filter_q or '' }}" placeholder="Search description, category, recorded by" />
+    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+    <a href="{{ url_for('income_list') }}" class="btn btn-secondary"><i class="fas fa-times"></i> Clear</a>
+</form>
+
+{% if filtered_total is defined %}
+<div class="stats-row filter-stats">
+    <div class="stat-chip">Records: {{ filtered_count }}</div>
+    <div class="stat-chip">Filtered Total: {{ currency_symbol }} {{ filtered_total|currency }}</div>
+</div>
+{% endif %}
+
+<!-- Add / Edit Form -->
+<div class="form-card" id="incomeForm">
+    <div class="form-header">
+        <h3 id="formTitle"><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Income</h3>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="hideForm()" id="hideFormBtn" style="display:none;"><i class="fas fa-times"></i></button>
+    </div>
+    <form method="POST" id="incomeFormElement" action="{{ url_for('income_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="hidden" name="form_type" id="formType" value="add" />
+        <input type="hidden" name="record_id" id="recordId" value="" />
+
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--gray-400);"></i> Date</label>
+                <input type="date" id="date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-tag" style="margin-right:5px;color:var(--gray-400);"></i> Category</label>
+                <select id="category" name="category" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Amount</label>
+                <div class="amount-with-currency">
+                    <input type="number" id="amount" name="amount" step="0.01" min="0.01" required placeholder="0.00" />
+                    <select id="currency" name="currency" class="currency-select">
+                        <option value="TZS">TZS</option>
+                        <option value="$">$</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-user-pen" style="margin-right:5px;color:var(--g-400);"></i> Recorded By</label>
+                <input type="text" id="recorded_by" name="recorded_by" value="{{ current_user.full_name }}" placeholder="Who recorded this" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-align-left" style="margin-right:5px;color:var(--gray-400);"></i> Description</label>
+                <input type="text" id="description" name="description" placeholder="Brief description (optional)" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideForm()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+    </form>
+</div>
+
+<!-- Income Table -->
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Recorded By</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>TZS Value</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in incomes.items %}
+            <tr>
+                <td>{{ item.date.strftime("%Y-%m-%d") }}</td>
+                <td><span class="badge badge-income">{{ item.category }}</span></td>
+                <td>{{ item.recorded_by or '-' }}</td>
+                <td>{{ item.description or '-' }}</td>
+                <td class="amount income-amount">{{ item.currency or 'TZS' }} {{ item.amount|currency }}</td>
+                <td class="amount{% if item.currency == '$' %} income-amount{% endif %}">{{ 'TZS' if item.currency == 'TZS' else 'TZS' }} {{ (item.tzs_equivalent or item.amount)|currency }}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-sm btn-edit" onclick='editIncome({{ item.id|tojson }}, {{ item.date.strftime("%Y-%m-%d")|tojson }}, {{ item.category|tojson }}, {{ item.amount|tojson }}, {{ item.description|tojson }}, {{ item.recorded_by|tojson }}, {{ (item.currency or "TZS")|tojson }})'><i class="fas fa-edit"></i> Edit</button>
+                    <form method="POST" action="{{ url_for('income_delete', id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this income record?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="empty-table"><i class="fas fa-inbox" style="margin-right:8px;opacity:0.4;"></i> No income records found. Add your first income above.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if incomes.pages > 1 %}
+<div class="pagination">
+    {% if incomes.has_prev %}
+    <a href="{{ url_for('income_list', page=incomes.prev_num, category=filter_category, currency=filter_currency, from_date=filter_from, to_date=filter_to, q=filter_q) }}" class="btn btn-sm btn-secondary"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ incomes.page }} of {{ incomes.pages }}</span>
+    {% if incomes.has_next %}
+    <a href="{{ url_for('income_list', page=incomes.next_num, category=filter_category, currency=filter_currency, from_date=filter_from, to_date=filter_to, q=filter_q) }}" class="btn btn-sm btn-secondary">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function showAddForm() {
+    document.getElementById('formType').value = 'add';
+    document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle" style="color:var(--primary);margin-right:8px;"></i> Add Income';
+    document.getElementById('incomeFormElement').action = '{{ url_for("income_add") }}';
+    document.getElementById('date').value = '{{ now.strftime("%Y-%m-%d") }}';
+    document.getElementById('category').value = '{{ categories[0] }}';
+    document.getElementById('amount').value = '';
+    document.getElementById('currency').value = 'TZS';
+    document.getElementById('recorded_by').value = '{{ current_user.full_name }}';
+    document.getElementById('description').value = '';
+    document.getElementById('incomeForm').style.display = 'block';
+    document.getElementById('incomeForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editIncome(id, date, category, amount, description, recordedBy, currency) {
+    document.getElementById('formType').value = 'edit';
+    document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit" style="color:var(--primary);margin-right:8px;"></i> Edit Income';
+    document.getElementById('incomeFormElement').action = '/income/edit/' + id;
+    document.getElementById('recordId').value = id;
+    document.getElementById('date').value = date;
+    document.getElementById('category').value = category;
+    document.getElementById('amount').value = amount;
+    document.getElementById('currency').value = currency || 'TZS';
+    document.getElementById('recorded_by').value = recordedBy || '';
+    document.getElementById('description').value = description || '';
+    document.getElementById('incomeForm').style.display = 'block';
+    document.getElementById('incomeForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideForm() {
+    document.getElementById('incomeForm').style.display = 'none';
+}
+</script>
+
+{% endblock %}

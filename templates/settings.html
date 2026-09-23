@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-cog" style="color:var(--primary);margin-right:10px;"></i> Settings</h1>
+</div>
+
+<div class="form-card">
+    <h3><i class="fas fa-user-lock" style="color:var(--danger);margin-right:8px;"></i> Change Password</h3>
+    <form method="POST" action="{{ url_for('change_password') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-key" style="margin-right:5px;color:var(--gray-400);"></i> Current Password</label>
+                <input type="password" name="current_password" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock" style="margin-right:5px;color:var(--gray-400);"></i> New Password</label>
+                <input type="password" name="new_password" required minlength="6" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-check-circle" style="margin-right:5px;color:var(--gray-400);"></i> Confirm New Password</label>
+                <input type="password" name="confirm_password" required minlength="6" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger"><i class="fas fa-key"></i> Change Password</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-card">
+    <h3><i class="fas fa-building" style="color:var(--primary);margin-right:8px;"></i> Company Settings</h3>
+    <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-building" style="margin-right:5px;color:var(--gray-400);"></i> Company Name</label>
+                <input type="text" id="company_name" name="company_name" value="{{ company_name }}" required />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-dollar-sign" style="margin-right:5px;color:var(--gray-400);"></i> Currency Symbol</label>
+                <input type="text" id="currency" name="currency" value="{{ currency }}" maxlength="5" style="max-width:140px;" />
+            </div>
+        </div>
+        <div class="form-group">
+            <label><i class="fas fa-image" style="margin-right:5px;color:var(--gray-400);"></i> Company Logo</label>
+            <input type="file" id="logo" name="logo" accept="image/*" />
+            {% if logo %}
+            <div style="margin-top:12px;display:flex;align-items:center;gap:16px;">
+                <img src="{{ url_for('static', filename=logo) }}" alt="Current Logo" style="max-height:64px;border-radius:8px;border:1px solid var(--gray-200);padding:4px;" />
+                <span style="color:var(--gray-400);font-size:0.85rem;"><i class="fas fa-info-circle"></i> Current logo. Upload a new file to replace.</span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Settings</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-card" style="margin-top:24px;">
+    <h3><i class="fas fa-tools" style="color:#FF9500;margin-right:8px;"></i> Maintenance Mode</h3>
+    <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group" style="display:flex;flex-direction:row;align-items:center;gap:12px;padding:8px 0;">
+                <label style="margin:0;cursor:pointer;display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" name="maintenance_mode" value="1" {% if maintenance_mode == '1' %}checked{% endif %} style="width:20px;height:20px;accent-color:#FF9500;" />
+                    <span><strong>Enable Maintenance Mode</strong><br /><span style="font-size:0.82rem;color:var(--gray-400);">When enabled, regular users see a maintenance notice. Admins can still access the system.</span></span>
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label><i class="fas fa-comment" style="margin-right:5px;color:var(--gray-400);"></i> Maintenance Message</label>
+            <textarea name="maintenance_message" rows="3" style="width:100%;padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--gray-200);font-family:inherit;font-size:0.9rem;">{{ maintenance_message }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-warning"><i class="fas fa-tools"></i> Update Maintenance</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-card" style="margin-top:24px;">
+    <h3><i class="fas fa-envelope" style="color:var(--info);margin-right:8px;"></i> Email Backup Settings</h3>
+    <p style="font-size:0.82rem;color:var(--g-400);margin-bottom:16px;">
+        Configure SMTP to receive database backups via email. For Gmail, use an
+        <a href="https://support.google.com/accounts/answer/185833" target="_blank" style="color:var(--teal);">App Password</a>.
+    </p>
+    <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-server" style="margin-right:5px;color:var(--gray-400);"></i> SMTP Host</label>
+                <input type="text" name="smtp_host" value="{{ smtp_host }}" placeholder="smtp.gmail.com" />
+            </div>
+            <div class="form-group" style="max-width:120px;">
+                <label><i class="fas fa-plug" style="margin-right:5px;color:var(--gray-400);"></i> Port</label>
+                <input type="text" name="smtp_port" value="{{ smtp_port }}" placeholder="587" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label><i class="fas fa-at" style="margin-right:5px;color:var(--gray-400);"></i> SMTP Username (Email)</label>
+                <input type="email" name="smtp_user" value="{{ smtp_user }}" placeholder="you@gmail.com" />
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock" style="margin-right:5px;color:var(--gray-400);"></i> SMTP Password</label>
+                <input type="password" name="smtp_pass" value="{{ smtp_pass }}" placeholder="App password" />
+            </div>
+        </div>
+        <div class="form-group">
+            <label><i class="fas fa-envelope" style="margin-right:5px;color:var(--gray-400);"></i> Recipient Email</label>
+            <input type="email" name="smtp_to" value="{{ smtp_to }}" placeholder="admin@example.com" />
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-info"><i class="fas fa-save"></i> Save Email Settings</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

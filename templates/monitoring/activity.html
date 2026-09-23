@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-history" style="color:var(--primary);margin-right:10px;"></i>Activity Logs</h1>
+</div>
+
+<form method="GET" action="{{ url_for('monitoring_activity') }}" class="form-card" style="padding:16px;margin-bottom:20px;">
+    <div class="form-row" style="align-items:end;">
+        <div class="form-group" style="flex:2;">
+            <label>Search</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="Search user, module, action..." />
+        </div>
+        <div class="form-group">
+            <label>Action</label>
+            <select name="action">
+                <option value="">All Actions</option>
+                {% for a in actions %}
+                <option value="{{ a }}" {% if filter_action == a %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Module</label>
+            <select name="module">
+                <option value="">All Modules</option>
+                {% for m in modules %}
+                <option value="{{ m }}" {% if filter_module == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Action</th>
+                <th>Module</th>
+                <th>Old Value</th>
+                <th>New Value</th>
+                <th>IP Address</th>
+                <th>Date/Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in activities.items %}
+            <tr>
+                <td><strong>{{ a.username }}</strong></td>
+                <td><span class="badge badge-{{ 'success' if a.action in ('LOGIN','CREATE','BACKUP') else 'danger' if a.action in ('DELETE','LOGOUT') else 'info' }}">{{ a.action }}</span></td>
+                <td>{{ a.module or '-' }}</td>
+                <td style="max-width:150px;font-size:0.82rem;word-break:break-word;">{{ a.old_value or '-' }}</td>
+                <td style="max-width:150px;font-size:0.82rem;word-break:break-word;">{{ a.new_value or '-' }}</td>
+                <td style="font-family:monospace;font-size:0.82rem;">{{ a.ip_address or '-' }}</td>
+                <td style="font-size:0.82rem;">{{ a.created_at.strftime("%Y-%m-%d %H:%M") if a.created_at else '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-table"><i class="fas fa-history"></i> No activity recorded</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if activities.pages > 1 %}
+<div class="pagination">
+    {% if activities.has_prev %}
+    <a href="{{ url_for('monitoring_activity', page=activities.prev_num, search=search, action=filter_action, module=filter_module) }}" class="btn btn-sm btn-secondary"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ activities.page }} of {{ activities.pages }}</span>
+    {% if activities.has_next %}
+    <a href="{{ url_for('monitoring_activity', page=activities.next_num, search=search, action=filter_action, module=filter_module) }}" class="btn btn-sm btn-secondary">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

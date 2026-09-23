@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-chart-bar" style="color:var(--teal);margin-right:10px;"></i>Reports</h1>
+</div>
+
+<!-- Report Mode Toggle -->
+<div class="form-card no-print">
+    <h3><i class="fas fa-filter" style="color:var(--teal);margin-right:8px;"></i> Generate Report</h3>
+
+    <div style="display:flex;gap:20px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;">
+            <input type="radio" name="report_mode_radio" value="standard" checked onchange="toggleReportMode('standard')" />
+            <i class="fas fa-chart-pie" style="color:var(--teal);"></i> Standard Report
+        </label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600;">
+            <input type="radio" name="report_mode_radio" value="customer" onchange="toggleReportMode('customer')" />
+            <i class="fas fa-user" style="color:var(--primary);"></i> Customer Report
+        </label>
+    </div>
+
+    <!-- ====== STANDARD REPORT FORM ====== -->
+    <div id="standardReportForm">
+        <form method="POST" action="{{ url_for('reports_generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <input type="hidden" name="report_mode" value="standard" />
+            <div class="form-row">
+                <div class="form-group">
+                    <label><i class="fas fa-clock" style="margin-right:5px;color:var(--g-400);"></i> Report Type</label>
+                    <select id="report_type" name="report_type" onchange="toggleReportType()" required>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div class="form-group" id="dateGroup">
+                    <label><i class="far fa-calendar-alt" style="margin-right:5px;color:var(--g-400);"></i> Date</label>
+                    <input type="date" id="date" name="date" value="{{ now.strftime('%Y-%m-%d') }}" />
+                </div>
+                <div class="form-group" id="startDateGroup" style="display:none;">
+                    <label><i class="far fa-calendar-check" style="margin-right:5px;color:var(--g-400);"></i> Start Date</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ now.strftime('%Y-%m-%d') }}" />
+                </div>
+                <div class="form-group" id="endDateGroup" style="display:none;">
+                    <label><i class="far fa-calendar-check" style="margin-right:5px;color:var(--g-400);"></i> End Date</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" />
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-wallet" style="margin-right:5px;color:var(--g-400);"></i> Account Type</label>
+                    <select name="account_type" onchange="updateCategories()">
+                        <option value="normal" selected>Main TZS Account</option>
+                        <option value="dollar">Dollar Account</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-tag" style="margin-right:5px;color:var(--g-400);"></i> Category</label>
+                    <select id="category" name="category">
+                        <option value="">All Categories</option>
+                        <optgroup label="Income" id="cat-income-group">
+                            {% for cat in income_categories %}
+                            <option value="{{ cat }}" class="cat-income">{{ cat }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Expenses" id="cat-expense-group">
+                            {% for cat in expense_categories %}
+                            <option value="{{ cat }}" class="cat-expense">{{ cat }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-exchange-alt" style="margin-right:5px;color:var(--g-400);"></i> Transaction Type</label>
+                    <select id="transaction_type" name="transaction_type" onchange="filterCategoriesByType()">
+                        <option value="all" {% if transaction_type == 'all' %}selected{% endif %}>All (Income + Expenses)</option>
+                        <option value="income" {% if transaction_type == 'income' %}selected{% endif %}>Income Only</option>
+                        <option value="expense" {% if transaction_type == 'expense' %}selected{% endif %}>Expenses Only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-play"></i> Generate Report</button>
+                {% if report_data and report_mode != 'customer' %}
+                <button type="button" class="btn btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== CUSTOMER REPORT FORM ====== -->
+    <div id="customerReportForm" style="display:none;">
+        <form method="POST" action="{{ url_for('reports_generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <input type="hidden" name="report_mode" value="customer" />
+            <input type="hidden" name="report_type" value="custom" />
+            <div class="form-row">
+                <div class="form-group">
+                    <label><i class="fas fa-wallet" style="margin-right:5px;color:var(--g-400);"></i> Account Type</label>
+                    <select id="customer_account_type" name="account_type" required onchange="loadCustomers()">
+                        <option value="">-- Select Account Type --</option>
+                        <option value="tzs">Customer TZS Account</option>
+                        <option value="usd">Customer Dollar Account</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user" style="margin-right:5px;color:var(--g-400);"></i> Customer</label>
+                    <select id="customer_select" name="customer_id" disabled required>
+                        <option value="">-- Select Account Type First --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="far fa-calendar-check" style="margin-right:5px;color:var(--g-400);"></i> From Date</label>
+                    <input type="date" id="cust_start_date" name="start_date" value="{{ (now - timedelta(days=30)).strftime('%Y-%m-%d') }}" required />
+                </div>
+                <div class="form-group">
+                    <label><i class="far fa-calendar-check" style="margin-right:5px;color:var(--g-400);"></i> To Date</label>
+                    <input type="date" id="cust_end_date" name="end_date" value="{{ now.strftime('%Y-%m-%d') }}" required />
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-tag" style="margin-right:5px;color:var(--g-400);"></i> Category</label>
+                    <select id="cust_category" name="category">
+                        <option value="">All Categories</option>
+                        <optgroup label="Income" id="cust-cat-income-group"></optgroup>
+                        <optgroup label="Expenses" id="cust-cat-expense-group"></optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-exchange-alt" style="margin-right:5px;color:var(--g-400);"></i> Transaction Type</label>
+                    <select id="cust_transaction_type" name="transaction_type" onchange="filterCategoriesByType(true)">
+                        <option value="all" {% if transaction_type == 'all' %}selected{% endif %}>All (Income + Expenses)</option>
+                        <option value="income" {% if transaction_type == 'income' %}selected{% endif %}>Income Only</option>
+                        <option value="expense" {% if transaction_type == 'expense' %}selected{% endif %}>Expenses Only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-play"></i> Generate Report</button>
+                {% if report_data and report_mode == 'customer' %}
+                <button type="button" class="btn btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =============================================================
+     REPORT OUTPUT
+     ============================================================= -->
+{% if report_data %}
+
+{% if report_mode == 'customer' and report_customer %}
+{% set sym = '$' if currency_label == 'USD' else 'TZS ' %}
+<div class="report-wrapper" id="reportResults">
+
+    <div class="report-header print-header">
+        <div class="print-brand">
+            {% if logo %}
+            <img src="{{ url_for('static', filename=logo) }}" alt="Logo" class="print-logo" />
+            {% endif %}
+            <div>
+                <h1 class="print-company">{{ company_name }}</h1>
+                <p class="print-subtitle">Customer Account Report</p>
+            </div>
+        </div>
+        <div class="print-meta">
+            <table class="meta-table">
+                <tr><td class="meta-label">Customer</td><td class="meta-value">{{ report_customer.name }}</td></tr>
+                <tr><td class="meta-label">Account Type</td><td class="meta-value">{% if currency_label == 'USD' %}Customer Dollar Account{% else %}Customer TZS Account{% endif %}</td></tr>
+                <tr><td class="meta-label">Period</td><td class="meta-value">{{ start.strftime("%b %d, %Y") }} — {{ end.strftime("%b %d, %Y") }}</td></tr>
+                <tr><td class="meta-label">Generated</td><td class="meta-value">{{ now.strftime("%B %d, %Y at %I:%M %p") }}</td></tr>
+                <tr><td class="meta-label">Prepared by</td><td class="meta-value">{{ current_user.full_name }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <hr class="print-divider" />
+
+    <div class="report-summary">
+        <div class="summary-block summary-income">
+            <span class="summary-label">Total Income</span>
+            <span class="summary-value">{{ sym }}{{ total_income|currency }}</span>
+        </div>
+        <div class="summary-block summary-expense">
+            <span class="summary-label">Total Expenses</span>
+            <span class="summary-value">{{ sym }}{{ total_expense|currency }}</span>
+        </div>
+        {% if show_balance %}
+        <div class="summary-block summary-balance">
+            <span class="summary-label">Current Balance</span>
+            <span class="summary-value">{{ sym }}{{ balance|currency }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+{% if incomes %}
+    {% if transaction_type in ['all', 'income'] %}
+    <div class="print-section">
+        <h2 class="print-section-title">
+            <span class="section-indicator income-dot"></span>
+            Income Records
+            <span class="section-count">{{ incomes|length }} entries</span>
+        </h2>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-cat">Category</th>
+                    <th>Payment</th>
+                    <th class="col-desc">Description</th>
+                    <th>Note</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in incomes %}
+                <tr>
+                    <td>{{ item.date.strftime("%b %d, %Y") }}</td>
+                    <td><span class="print-badge badge-income-txt">{{ item.category }}</span></td>
+                    <td>{{ item.payment_method or '—' }}</td>
+                    <td>{{ item.description or '—' }}</td>
+                    <td>{{ item.note or '—' }}</td>
+                    <td class="amt income-txt">{{ sym }}{{ item.amount|currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="footer-label">Total Income ({{ currency_label }})</td>
+                    <td class="amt income-txt footer-value">{{ sym }}{{ total_income|currency }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+{% else %}
+    {% if transaction_type in ['all', 'income'] %}
+    <div class="print-section">
+        <div class="empty-table" style="text-align:center;padding:40px;color:var(--gray-400);">
+            <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;"></i>
+            No income transactions found for the selected period.
+        </div>
+    </div>
+    {% endif %}
+{% endif %}
+
+{% if expenses %}
+    {% if transaction_type in ['all', 'expense'] %}
+    <div class="print-section">
+        <h2 class="print-section-title">
+            <span class="section-indicator expense-dot"></span>
+            Expense Records
+            <span class="section-count">{{ expenses|length }} entries</span>
+        </h2>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-cat">Category</th>
+                    <th>Payment</th>
+                    <th class="col-desc">Description</th>
+                    <th>Note</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in expenses %}
+                <tr>
+                    <td>{{ item.date.strftime("%b %d, %Y") }}</td>
+                    <td><span class="print-badge badge-expense-txt">{{ item.category }}</span></td>
+                    <td>{{ item.payment_method or '—' }}</td>
+                    <td>{{ item.description or '—' }}</td>
+                    <td>{{ item.note or '—' }}</td>
+                    <td class="amt expense-txt">{{ sym }}{{ item.amount|currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="footer-label">Total Expenses ({{ currency_label }})</td>
+                    <td class="amt expense-txt footer-value">{{ sym }}{{ total_expense|currency }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+{% else %}
+    {% if transaction_type in ['all', 'expense'] %}
+    <div class="print-section">
+        <div class="empty-table" style="text-align:center;padding:40px;color:var(--gray-400);">
+            <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:10px;"></i>
+            No expense transactions found for the selected period.
+        </div>
+    </div>
+    {% endif %}
+{% endif %}
+
+    <hr class="print-divider" />
+    <div class="print-grand-total">
+        <table class="grand-total-table">
+            <tr>
+                <td class="grand-label">Total Income ({{ currency_label }})</td>
+                <td class="grand-amt income-txt">{{ sym }}{{ total_income|currency }}</td>
+            </tr>
+            <tr>
+                <td class="grand-label">Total Expenses ({{ currency_label }})</td>
+                <td class="grand-amt expense-txt">{{ sym }}{{ total_expense|currency }}</td>
+            </tr>
+            {% if not category %}
+            <tr class="grand-row">
+                <td class="grand-label grand-final">Net Balance ({{ currency_label }})</td>
+                <td class="grand-amt grand-final {% if balance >= 0 %}income-txt{% else %}expense-txt{% endif %}">{{ sym }}{{ balance|currency }}</td>
+            </tr>
+        </table>
+    </div>
+{% endif %}
+
+    <div class="print-footer">
+        <p>{{ company_name }} &mdash; Customer Account Report</p>
+        <p>Generated {{ now.strftime("%B %d, %Y at %I:%M %p") }} by {{ current_user.full_name }}</p>
+    </div>
+
+</div>
+
+{% elif report_mode != 'customer' %}
+{% set sym = '$' if currency_label == 'USD' else 'TZS ' %}
+<div class="report-wrapper" id="reportResults">
+
+    <div class="report-header print-header">
+        <div class="print-brand">
+            {% if logo %}
+            <img src="{{ url_for('static', filename=logo) }}" alt="Logo" class="print-logo" />
+            {% endif %}
+            <div>
+                <h1 class="print-company">{{ company_name }}</h1>
+                <p class="print-subtitle">Income &amp; Expense Report{% if account_type and account_type != 'general' %} — {% if account_type == 'normal' %}Main TZS Account{% elif account_type == 'dollar' %}Dollar Account{% elif account_type == 'tzs' %}Customer TZS Account{% else %}Customer Dollar Account{% endif %}{% endif %}</p>
+            </div>
+        </div>
+        <div class="print-meta">
+            <table class="meta-table">
+                <tr><td class="meta-label">Report</td><td class="meta-value">{{ title }}</td></tr>
+                <tr><td class="meta-label">Generated</td><td class="meta-value">{{ now.strftime("%B %d, %Y at %I:%M %p") }}</td></tr>
+                <tr><td class="meta-label">Prepared by</td><td class="meta-value">{{ current_user.full_name }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <hr class="print-divider" />
+
+    <div class="report-summary">
+        <div class="summary-block summary-income">
+            <span class="summary-label">Total Income</span>
+            <span class="summary-value">{{ sym }}{{ total_income|currency }}</span>
+        </div>
+        <div class="summary-block summary-expense">
+            <span class="summary-label">Total Expenses</span>
+            <span class="summary-value">{{ sym }}{{ total_expense|currency }}</span>
+        </div>
+        {% if show_balance %}
+        <div class="summary-block summary-balance">
+            <span class="summary-label">Net Balance</span>
+            <span class="summary-value">{{ sym }}{{ balance|currency }}</span>
+        </div>
+    {% endif %}
+    </div>
+
+    {% if transaction_type in ['all', 'income'] %}
+    <div class="print-section">
+        <h2 class="print-section-title">
+            <span class="section-indicator income-dot"></span>
+            Income Records
+            <span class="section-count">{{ incomes|length }} entries</span>
+        </h2>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-cat">Category</th>
+                    <th>Payment</th>
+                    <th class="col-desc">Description</th>
+                    <th>Note</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in incomes %}
+                <tr>
+                    <td>{{ item.date.strftime("%b %d, %Y") }}</td>
+                    <td><span class="print-badge badge-income-txt">{{ item.category }}</span></td>
+                    <td>{{ item.payment_method or '—' }}</td>
+                    <td>{{ item.description or '—' }}</td>
+                    <td>{{ item.note or '—' }}</td>
+                    <td class="amt income-txt">{{ sym }}{{ item.amount|currency }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-row">No income records for this period.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="footer-label">Total Income ({{ currency_label }})</td>
+                    <td class="amt income-txt footer-value">{{ sym }}{{ total_income|currency }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+{% endif %}
+
+{% if transaction_type in ['all', 'expense'] %}
+    <div class="print-section">
+        <h2 class="print-section-title">
+            <span class="section-indicator expense-dot"></span>
+            Expense Records
+            <span class="section-count">{{ expenses|length }} entries</span>
+        </h2>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-cat">Category</th>
+                    <th>Payment</th>
+                    <th class="col-desc">Description</th>
+                    <th>Note</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in expenses %}
+                <tr>
+                    <td>{{ item.date.strftime("%b %d, %Y") }}</td>
+                    <td><span class="print-badge badge-expense-txt">{{ item.category }}</span></td>
+                    <td>{{ item.payment_method or '—' }}</td>
+                    <td>{{ item.description or '—' }}</td>
+                    <td>{{ item.note or '—' }}</td>
+                    <td class="amt expense-txt">{{ sym }}{{ item.amount|currency }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-row">No expense records for this period.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="footer-label">Total Expenses ({{ currency_label }})</td>
+                    <td class="amt expense-txt footer-value">{{ sym }}{{ total_expense|currency }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+{% endif %}
+
+    <hr class="print-divider" />
+    <div class="print-grand-total">
+        <table class="grand-total-table">
+{% if transaction_type in ['all', 'income'] %}
+            <tr>
+                <td class="grand-label">Total Income ({{ currency_label }})</td>
+                <td class="grand-amt income-txt">{{ sym }}{{ total_income|currency }}</td>
+            </tr>
+            {% endif %}
+            {% if transaction_type in ['all', 'expense'] %}
+            <tr>
+                <td class="grand-label">Total Expenses ({{ currency_label }})</td>
+                <td class="grand-amt expense-txt">{{ sym }}{{ total_expense|currency }}</td>
+            </tr>
+            {% endif %}
+            {% if transaction_type == 'all' %}
+            <tr class="grand-row">
+                <td class="grand-label grand-final">Net Balance ({{ currency_label }})</td>
+                <td class="grand-amt grand-final {% if balance >= 0 %}income-txt{% else %}expense-txt{% endif %}">{{ sym }}{{ balance|currency }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+{% endif %}
+
+    <div class="print-footer">
+        <p>{{ company_name }} &mdash; Customer Account Report</p>
+        <p>Generated {{ now.strftime("%B %d, %Y at %I:%M %p") }} by {{ current_user.full_name }}</p>
+    </div>
+{% endif %}
+
+<script>
+var allCats = {
+    normal: {
+        income: {{ income_categories|tojson }},
+        expense: {{ expense_categories|tojson }}
+    },
+    dollar: {
+        income: {{ income_categories|tojson }},
+        expense: {{ expense_categories|tojson }}
+    },
+    tzs: {
+        income: {{ tzs_income_categories|tojson }},
+        expense: {{ tzs_expense_categories|tojson }}
+    },
+    usd: {
+        income: {{ usd_income_categories|tojson }},
+        expense: {{ usd_expense_categories|tojson }}
+    }
+};
+
+function toggleReportType() {
+    var type = document.getElementById('report_type').value;
+    document.getElementById('dateGroup').style.display = (type === 'custom') ? 'none' : 'block';
+    document.getElementById('startDateGroup').style.display = (type === 'custom') ? 'block' : 'none';
+    document.getElementById('endDateGroup').style.display = (type === 'custom') ? 'block' : 'none';
+}
+
+function updateCategories() {
+    var at = document.querySelector('#standardReportForm select[name="account_type"]').value;
+    var cats = allCats[at] || allCats.normal;
+    var incomeGroup = document.getElementById('cat-income-group');
+    var expenseGroup = document.getElementById('cat-expense-group');
+    incomeGroup.innerHTML = '';
+    expenseGroup.innerHTML = '';
+    cats.income.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        opt.className = 'cat-income';
+        incomeGroup.appendChild(opt);
+    });
+    cats.expense.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        opt.className = 'cat-expense';
+        expenseGroup.appendChild(opt);
+    });
+    // Apply current transaction type filter
+    filterCategoriesByType();
+}
+
+function filterCategoriesByType(isCustomerForm) {
+    var prefix = isCustomerForm ? 'cust_' : '';
+    var typeSelect = document.getElementById(prefix + 'transaction_type');
+    var incomeGroup = document.getElementById(prefix + 'cat-income-group');
+    var expenseGroup = document.getElementById(prefix + 'cat-expense-group');
+    var categorySelect = document.getElementById(prefix + 'category');
+    
+    if (!typeSelect) return;
+    
+    var type = typeSelect.value;
+    
+    // Show/hide optgroups based on selection
+    if (type === 'income') {
+        incomeGroup.style.display = '';
+        expenseGroup.style.display = 'none';
+    } else if (type === 'expense') {
+        incomeGroup.style.display = 'none';
+        expenseGroup.style.display = '';
+    } else {
+        incomeGroup.style.display = '';
+        expenseGroup.style.display = '';
+    }
+    
+    // Reset category selection if it's no longer visible
+    var selectedValue = categorySelect.value;
+    var selectedOption = categorySelect.querySelector('option[value="' + selectedValue + '"]');
+    if (selectedOption && selectedOption.style.display === 'none') {
+        categorySelect.value = '';
+    }
+}
+
+function toggleReportMode(mode) {
+    document.getElementById('standardReportForm').style.display = (mode === 'standard') ? 'block' : 'none';
+    document.getElementById('customerReportForm').style.display = (mode === 'customer') ? 'block' : 'none';
+}
+
+function loadCustomers() {
+    var at = document.getElementById('customer_account_type').value;
+    var sel = document.getElementById('customer_select');
+    var catIncome = document.getElementById('cust-cat-income-group');
+    var catExpense = document.getElementById('cust-cat-expense-group');
+
+    sel.innerHTML = '<option value=\"\">Loading customers...</option>';
+    sel.disabled = true;
+
+    if (!at) {
+        sel.innerHTML = '<option value=\"\">-- Select Account Type First --</option>';
+        sel.disabled = true;
+        catIncome.innerHTML = '';
+        catExpense.innerHTML = '';
+        return;
+    }
+
+    var cats = allCats[at];
+    catIncome.innerHTML = '';
+    catExpense.innerHTML = '';
+    cats.income.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        catIncome.appendChild(opt);
+    });
+    cats.expense.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        catExpense.appendChild(opt);
+    });
+
+    fetch('/api/customers/' + at)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            sel.innerHTML = '';
+            if (data.length === 0) {
+                sel.innerHTML = '<option value=\"\">No customers found for this account.</option>';
+                sel.disabled = true;
+            } else {
+                var opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = '-- Select Customer --';
+                sel.appendChild(opt);
+                data.forEach(function(c) {
+                    var o = document.createElement('option');
+                    o.value = c.id;
+                    o.textContent = c.name;
+                    sel.appendChild(o);
+                });
+                sel.disabled = false;
+            }
+        })
+.catch(function(err) {
+            sel.innerHTML = '<option value="">Error loading customers.</option>';
+            sel.disabled = true;
+        });
+}
+
+// Initialize category filters on page load
+document.addEventListener('DOMContentLoaded', function() {
+    filterCategoriesByType(false);  // Standard form
+    filterCategoriesByType(true);   // Customer form
+});
+</script>
+
+{% endblock %}

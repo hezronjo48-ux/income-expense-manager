@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="fas fa-bell" style="color:#FF9500;margin-right:10px;"></i>Notifications Center</h1>
+    <div style="display:flex;gap:8px;">
+        {% if unread_count > 0 %}
+        <form method="POST" action="{{ url_for('monitoring_notification_read_all') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check-double"></i> Mark All Read ({{ unread_count }})</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<form method="GET" action="{{ url_for('monitoring_notifications') }}" class="form-card" style="padding:16px;margin-bottom:20px;">
+    <div class="form-row" style="align-items:end;">
+        <div class="form-group">
+            <label>Type</label>
+            <select name="type">
+                <option value="">All Types</option>
+                {% for t in notif_types %}
+                <option value="{{ t }}" {% if filter_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Severity</label>
+            <select name="severity">
+                <option value="">All</option>
+                <option value="critical" {% if filter_severity == 'critical' %}selected{% endif %}>Critical</option>
+                <option value="warning" {% if filter_severity == 'warning' %}selected{% endif %}>Warning</option>
+                <option value="info" {% if filter_severity == 'info' %}selected{% endif %}>Info</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Message</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Date/Time</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notifications.items %}
+            <tr class="{% if not n.is_read %}{% endif %}">
+                <td><strong>{{ n.title }}</strong></td>
+                <td style="max-width:250px;word-break:break-word;">{{ n.message }}</td>
+                <td><span class="badge badge-info">{{ n.notification_type }}</span></td>
+                <td>
+                    <span class="badge badge-{{ 'danger' if n.severity == 'critical' else 'warning' if n.severity == 'warning' else 'info' }}">
+                        {{ n.severity }}
+                    </span>
+                </td>
+                <td>
+                    {% if n.is_read %}
+                    <span style="color:#0EA5E9;"><i class="fas fa-check-circle"></i> Read</span>
+                    {% else %}
+                    <span style="color:#FF9500;"><i class="fas fa-circle"></i> Unread</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.82rem;">{{ n.created_at.strftime("%Y-%m-%d %H:%M") if n.created_at else '-' }}</td>
+                <td class="actions-cell" style="white-space:nowrap;">
+                    {% if not n.is_read %}
+                    <form method="POST" action="{{ url_for('monitoring_notification_read', id=n.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('monitoring_notification_delete', id=n.id) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                        <button type="submit" class="btn btn-sm btn-delete" onclick="return confirm('Delete this notification?');"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-table"><i class="fas fa-bell-slash"></i> No notifications</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if notifications.pages > 1 %}
+<div class="pagination">
+    {% if notifications.has_prev %}
+    <a href="{{ url_for('monitoring_notifications', page=notifications.prev_num, type=filter_type, severity=filter_severity) }}" class="btn btn-sm btn-secondary"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ notifications.page }} of {{ notifications.pages }}</span>
+    {% if notifications.has_next %}
+    <a href="{{ url_for('monitoring_notifications', page=notifications.next_num, type=filter_type, severity=filter_severity) }}" class="btn btn-sm btn-secondary">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
